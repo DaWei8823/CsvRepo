@@ -4,10 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace CsvRepo
+namespace CsvRepo.Tests
 {
-    public interface IFile : IDisposable
+    public class Class1
     {
-        string ReadLine();
     }
 }

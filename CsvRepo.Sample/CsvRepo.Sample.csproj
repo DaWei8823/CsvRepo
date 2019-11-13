@@ -4,11 +4,11 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{E9E378A1-723E-4FD7-A36B-18E2243F3340}</ProjectGuid>
+    <ProjectGuid>{B6EFDE72-6B53-4DA1-B481-EF301C315C03}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>CsvRepo</RootNamespace>
-    <AssemblyName>CsvRepo</AssemblyName>
+    <RootNamespace>CsvRepo.Sample</RootNamespace>
+    <AssemblyName>CsvRepo.Sample</AssemblyName>
     <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
@@ -41,12 +41,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="CsvRepo.cs" />
-    <Compile Include="FileProvider.cs" />
-    <Compile Include="FileReader.cs" />
-    <Compile Include="ICsvRepo.cs" />
-    <Compile Include="IFile.cs" />
-    <Compile Include="IFileReader.cs" />
+    <Compile Include="Customer.cs" />
+    <Compile Include="Item.cs" />
+    <Compile Include="Order.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

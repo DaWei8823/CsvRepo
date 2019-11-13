@@ -6,8 +6,8 @@ using System.Threading.Tasks;
 
 namespace CsvRepo
 {
-    public interface IFile : IDisposable
+    public interface IFileProvider 
     {
-        IFileReader GetFileReader(string path);
+        IFile GetFile(string path);
     }
 }
