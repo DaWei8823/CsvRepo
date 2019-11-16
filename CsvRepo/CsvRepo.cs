@@ -78,6 +78,11 @@ namespace CsvRepo
             throw new NotImplementedException();
         }
 
+        private object GetInternal(Type type, Func<object,bool> pred)
+        {
+            throw new NotImplementedException();
+        }
+
         private string GetFileName<TItem>()
             => GetFileName(typeof(TItem));
 
@@ -105,9 +110,26 @@ namespace CsvRepo
             if(typeof(IEnumerable).IsAssignableFrom(propertyType) && propertyType.IsGenericType)
             {
                 var childType = propertyType.GetGenericArguments()[0];
-                var primaryKeyIndex = GetPropertyIndex(objectType, GetPrimaryKeyFieldName(objectType));
+                var primaryKeyFieldName = GetPrimaryKeyFieldName(objectType);
 
-                                
+                var primaryKeyIndex = GetPropertyIndex(objectType, primaryKeyFieldName);
+
+                if (primaryKeyIndex == null)
+                    throw new ArgumentException($"Cannot find primary key {primaryKeyFieldName} in type {objectType.Name}");
+
+                var foreignKeyInChildTypeIndex = GetPropertyIndex(childType, primaryKeyFieldName);
+
+                if(foreignKeyInChildTypeIndex == null)
+                    throw new ArgumentException($"Cannot find foreign key reference {primaryKeyFieldName} to {objectType.Name} in child type {childType.Name}");
+
+                return cells =>
+                {
+                    Func<object, bool> predicate = obj => string.Equals(
+                        obj.GetType().GetProperties()[foreignKeyInChildTypeIndex.Value].GetValue(obj).ToString(),
+                        cells[primaryKeyIndex.Value]);
+
+                    return GetInternal(childType, predicate);
+                };
             }
 
             var foreignKeyIndex = GetPropertyIndex(objectType, GetPrimaryKeyFieldName(propertyType));              
@@ -118,18 +140,15 @@ namespace CsvRepo
 
         }
 
+
+        private Func<string[], object> MakeChildToParentInstantiationFunc(Type parentType, int foreignKeyIndex)
+            => line => GetInternal(parentType, line[foreignKeyIndex]);
+
         private static int? GetPropertyIndex(Type type, string propertyName)
             => type.GetProperties()
                 .Select((p, i) => new { property = p, index = i })
                 .SingleOrDefault(a => a.property.Name == propertyName)
-            ?.index;
-
-        private Func<string[], object>
-
-        private Func<string[], object> MakeChildToParentInstantiationFunc(Type parentType, int foreignKeyIndex)
-            => line => GetIntneral(parentType, line[foreignKeyIndex]);
-
-        
+            ?.index;               
 
         private static string GetPrimaryKeyFieldName(Type type)
             => $"{type.Name}Id";
