@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -36,8 +37,7 @@ namespace CsvRepo
                 string line;
                 file.ReadLine(); // advance reader past the header line
                 while ((line = file.ReadLine()) != null)
-                    yield return instantiate(line);
-
+                    yield return instantiate(Split(line));
             }
         }
 
@@ -73,60 +73,75 @@ namespace CsvRepo
             throw new NotImplementedException();
         }
 
-        public object GetInternal(TKey key)
+        private object GetInternal(Type type, string key)
         {
             throw new NotImplementedException();
         }
 
-
-
         private string GetFileName<TItem>()
-            => Path.Combine(_baseDirectory, $"{typeof(TItem).Name}.csv");
+            => GetFileName(typeof(TItem));
+
+        private string GetFileName(Type t)
+            => Path.Combine(_baseDirectory, $"{t.Name}.csv");
+        
 
         //ToDo: What if columns are not in order that properties are defined in the class?
-        private Func<string, T> GetInstantiationFunc<T>()
+        //TODO: What if primary key has different name
+        private static Func<string[], T> GetInstantiationFunc<T>()
         {
 
             var objType = typeof(T);
+                       
+            var propertyInstantiators = objType.GetProperties()
+                .Select(p => p.GetType())
+                .Select((propType, index) => PropertyInstantiatorMapping.ContainsKey(propType) 
+                    ? PropertyInstantiatorMapping[propType].Curry(index) 
+                    : GetNavigationPropertyInstantiator(objType, propType));           
 
-            var propertyInstantiators = objType.GetProperties().Select(p => p.GetType())
-               .Select(propType => PropertyInstantiatorMapping.ContainsKey(propType) 
-                ? PropertyInstantiatorMapping[propType] 
-                : GetNavigationPropertyInstantiator(objType, propType));
-
-            return line =>
-            {
-                var 
-
-                Split(line)
-                    .Zip(propertyInstantiators, (cell, instantiator) =>
-            }
         }
 
-        private Func<string,object> GetNavigationPropertyInstantiator(Type objectType, Type propertyType)
+        private Func<string[], object> GetNavigationPropertyInstantiator(Type objectType, Type propertyType)
         {
+            if(typeof(IEnumerable).IsAssignableFrom(propertyType) && propertyType.IsGenericType)
+            {
+                var childType = propertyType.GetGenericArguments()[0];
+                var primaryKeyIndex = GetPropertyIndex(objectType, GetPrimaryKeyFieldName(objectType));
 
+                                
+            }
 
-            var foreignKeyProp = objectType.GetProperties()
-                .SingleOrDefault(p => p.Name == GetForeignKeyFieldName(propertyType));
-
-            return cell => foreignKeyProp != null 
-                ? foreignKeyProp.GetValue()
-
+            var foreignKeyIndex = GetPropertyIndex(objectType, GetPrimaryKeyFieldName(propertyType));              
             
+            if (foreignKeyIndex != null)
+                return MakeChildToParentInstantiationFunc(propertyType, foreignKeyIndex.Value);
+                       
 
         }
 
-        private static string GetForeignKeyFieldName(Type type)
+        private static int? GetPropertyIndex(Type type, string propertyName)
+            => type.GetProperties()
+                .Select((p, i) => new { property = p, index = i })
+                .SingleOrDefault(a => a.property.Name == propertyName)
+            ?.index;
+
+        private Func<string[], object>
+
+        private Func<string[], object> MakeChildToParentInstantiationFunc(Type parentType, int foreignKeyIndex)
+            => line => GetIntneral(parentType, line[foreignKeyIndex]);
+
+        
+
+        private static string GetPrimaryKeyFieldName(Type type)
             => $"{type.Name}Id";
 
 
 
 
-        private static readonly IDictionary<Type, Func<string, object>> PropertyInstantiatorMapping = new Dictionary<Type, Func<string, object>>
-    {
-        { typeof(int), cell => int.TryParse(cell, out int result) ? result : 0 }
-    }
+        private static readonly IDictionary<Type, Func<int, string[], object>> PropertyInstantiatorMapping
+            = new Dictionary<Type, Func<int, string[], object>>
+        {
+            { typeof(int), (index, cells) => int.TryParse(cells[index], out int result) ? result : 0 }
+        };
     
 
     private string[] Split(string line)
