@@ -69,6 +69,10 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\CsvRepo.Sample\CsvRepo.Sample.csproj">
+      <Project>{B6EFDE72-6B53-4DA1-B481-EF301C315C03}</Project>
+      <Name>CsvRepo.Sample</Name>
+    </ProjectReference>
     <ProjectReference Include="..\CsvRepo\CsvRepo.csproj">
       <Project>{e9e378a1-723e-4fd7-a36b-18e2243f3340}</Project>
       <Name>CsvRepo</Name>

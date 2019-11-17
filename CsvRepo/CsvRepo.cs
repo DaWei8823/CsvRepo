@@ -26,7 +26,6 @@ namespace CsvRepo
             _fileProvider = new FileProvider();
         }
 
-
         public ICollection<TItem> Get<TItem>() where TItem : class
         {
             var itemType = typeof(TItem);
@@ -79,9 +78,7 @@ namespace CsvRepo
             }
 
             throw new InvalidOperationException($"Could not find {itemType.Name}  value of {key.ToString()} for primary key {primaryKeyFieldName}");
-
         }
-
 
         public void Add<TItem>(TItem item)
         {
@@ -127,16 +124,36 @@ namespace CsvRepo
             Delete<TItem>(item);
             Add(item);
         }
-                
-        private object GetInternal(Type type, string key)
+
+        private object GetInternal(Type itemType)
         {
             throw new NotImplementedException();
         }
 
-        private object GetInternal(Type type, Func<object, bool> pred)
+            private object GetInternal(Type itemType, string key)
         {
+
             throw new NotImplementedException();
+            //var path = GetFilePath(itemType);
+
+            //if (!_fileProvider.Exists(path))
+            //    return Enumerable.Empty<TItem>().ToList();
+
+            //var instantiate = GetInstantiationFunc(itemType);
+
+            //var items = new List<TItem>();
+
+            //using (var file = _fileProvider.GetFile(path))
+            //{
+            //    string line;
+            //    file.ReadLine(); // advance reader past the header line
+            //    while ((line = file.ReadLine()) != null)
+            //        items.Add(instantiate(Split(line)) as TItem);
+            //}
+
+            //return items;
         }
+
 
         private void Delete<TItem>(object key)
         {
@@ -178,9 +195,9 @@ namespace CsvRepo
                 .Select((property, index) =>
                     new
                     {
-                        instantiator = PropertyInstantiatorMapping.ContainsKey(property.GetType())
-                                ? PropertyInstantiatorMapping[property.GetType()].Curry(index)
-                                : GetNavigationPropertyInstantiator(objectType, property.GetType()),
+                        instantiator = PropertyInstantiatorMapping.ContainsKey(property.PropertyType)
+                                ? PropertyInstantiatorMapping[property.PropertyType].Curry(index)
+                                : GetNavigationPropertyInstantiator(objectType, property.PropertyType),
                         property
                     }
                 ).ToList();
@@ -218,7 +235,7 @@ namespace CsvRepo
                     obj.GetType().GetProperties()[foreignKeyInChildTypeIndex.Value].GetValue(obj).ToString(),
                     cells[primaryKeyIndex.Value]);
 
-                return GetInternal(childType, predicate);
+                return (GetInternal(childType) as IEnumerable<object>).Where(predicate).ToList();
             };
         }
 
@@ -277,12 +294,19 @@ namespace CsvRepo
         };
 
         private static string GetHeader(Type type)
-            => GetCsvLine(type.GetProperties().Select(p => p.Name));
+        {
+            var nonNavigationProps = type.GetProperties()
+                .Where(p => PropertyInstantiatorMapping.ContainsKey(p.PropertyType))
+                .Select(p => p.Name);
+
+            return Csvify(nonNavigationProps);
+        }
         
         private static string GetCsvLine(object obj)
         {
             var propValues = obj.GetType()
                 .GetProperties()
+                .Where(p => PropertyInstantiatorMapping.ContainsKey(p.PropertyType))
                 .Select(p => p.GetValue(obj).ToString());
 
             return Csvify(propValues);
