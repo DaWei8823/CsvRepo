@@ -45,8 +45,8 @@
     <Compile Include="FileProvider.cs" />
     <Compile Include="FileReader.cs" />
     <Compile Include="ICsvRepo.cs" />
+    <Compile Include="IFileProvider.cs" />
     <Compile Include="IFile.cs" />
-    <Compile Include="IFileReader.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Util.cs" />
   </ItemGroup>

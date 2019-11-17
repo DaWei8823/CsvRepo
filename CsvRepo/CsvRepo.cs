@@ -27,10 +27,11 @@ namespace CsvRepo
         }
 
 
-        public IEnumerable<TItems> GetAll<TItems>() where TItems : class
+        public IEnumerable<TItems> Get<TItems>() where TItems : class
         {
-            var path = GetFileName(typeof(TItems));
-            var instantiate = GetInstantiationFunc(typeof(TItems));
+            var itemType = typeof(TItems);
+            var path = GetFileName(itemType);
+            var instantiate = GetInstantiationFunc(itemType);
 
             using (var file = _fileProvider.GetFile(path))
             {
@@ -41,21 +42,65 @@ namespace CsvRepo
             }
         }
 
-        public TItem Get<TItem, TKey>(TKey key)
+        public TItem Get<TItem, TKey>(TKey key) where TItem : class
         {
+            var itemType = typeof(TItem);
+            var path = GetFileName(itemType);
+            var instantiate = GetInstantiationFunc(itemType);
+
+            var primaryKeyFieldName = GetPrimaryKeyFieldName(itemType);
+            var primaryKeyIndex = GetPropertyIndex(itemType, primaryKeyFieldName);
+
+            if (!primaryKeyIndex.HasValue)
+                throw new ArgumentException($"Excepted primary key {primaryKeyFieldName} missing on  type {itemType.Name}");
             
-        }
+            using (var file = _fileProvider.GetFile(path))
+            {
+                string line;
+                file.ReadLine(); // advance reader past the header line
+                while ((line = file.ReadLine()) != null)
+                {
+                    var cells = Split(line);
+                    if (string.Equals(cells[primaryKeyIndex.Value], key.ToString()))
+                        return instantiate(Split(line)) as TItem;
+                }
 
-
-        public IEnumerable<TItem> Get<TItem>(Func<TItem, bool> pred)
-        {
-            throw new NotImplementedException();
+                throw new InvalidOperationException($"Could not find {itemType.Name}  value of {key.ToString()} for primary key {primaryKeyFieldName}");
+            }
         }
 
 
         public void Add<TItem>(TItem item)
         {
-            throw new NotImplementedException();
+            var itemType = typeof(TItem);
+            var path = GetFileName(itemType);
+
+            if (_fileProvider.Exists(path))
+                using (var file = _fileProvider.GetFile(path))
+                    file.AppendLine(GetCsvLine(item));
+            
+            using (var file = _fileProvider.Create(path))
+            {
+                file.AppendLine(GetHeader(itemType));
+                file.AppendLine(GetCsvLine(item));
+            }   
+        }
+
+        public void AddRange<TItem>(IEnumerable<TItem> items)
+        {
+            var itemType = typeof(TItem);
+            var path = GetFileName(itemType);
+
+
+            if (_fileProvider.Exists(path))
+                using (var file = _fileProvider.GetFile(path))
+                    items.Select(i => GetCsvLine(i)).ToList().ForEach(file.AppendLine);
+            
+            using (var file = _fileProvider.Create(path))
+            {
+                file.AppendLine(GetHeader(itemType));
+                items.Select(i => GetCsvLine(i)).ToList().ForEach(file.AppendLine);
+            }
         }
 
         public void Delete<TItem>(TItem item)
@@ -72,14 +117,14 @@ namespace CsvRepo
         {
             throw new NotImplementedException();
         }
-
+                
         private object GetInternal(Type type, string key)
         {
             throw new NotImplementedException();
         }
 
-        private object GetInternal(Type type, Func<object,bool> pred)
-            => Get
+        private object GetInternal(Type type, Func<object, bool> pred)
+            => ;
             
         
 
@@ -107,7 +152,7 @@ namespace CsvRepo
 
             return cells =>
             {
-                var instance = Activator.CreateInstance<T>();
+                var instance = Activator.CreateInstance(objectType);
                 propTypeAndInstantiators.ForEach(pti => pti.property.SetValue(instance, pti.instantiator(cells)));
                 return instance;
             };
@@ -152,7 +197,7 @@ namespace CsvRepo
                 throw new ArgumentException($"Cannot find foreign key {foreingKey} reference to {parentType.Name} on type {childType.Name}");
 
             return cells => GetInternal(parentType, cells[foreignKeyIndex.Value]);
-        }              
+        }    
 
         private static int? GetPropertyIndex(Type type, string propertyName)
             => type.GetProperties()
@@ -169,9 +214,24 @@ namespace CsvRepo
         {
             { typeof(int), (index, cells) => int.TryParse(cells[index], out int result) ? result : 0 }
         };
-    
 
-    private string[] Split(string line)
-        => line.Trim('"').Replace("\",\"", "~").Split('~')
+        private static string GetHeader(Type type)
+            => GetCsvLine(type.GetProperties().Select(p => p.Name));
+        
+
+        private static string GetCsvLine(object obj)
+        {
+            var propValues = obj.GetType()
+                .GetProperties()
+                .Select(p => p.GetValue(obj).ToString());
+
+            return GetCsvLine(propValues);
+        }
+
+        private static string Csvify(IEnumerable<string> items)
+            => string.Join(",", items.Select(p => $"\"{p.ToString()}\""));
+
+        private string[] Split(string line)
+            => line.Trim('"').Replace("\",\"", "~").Split('~')
     }
 }

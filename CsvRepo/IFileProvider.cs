@@ -6,8 +6,10 @@ using System.Threading.Tasks;
 
 namespace CsvRepo
 {
-    public interface IFile : IDisposable
+    public interface IFileProvider 
     {
-        string ReadLine();
+        IFile GetFile(string path);
+        bool Exists(string path);
+        IFile Create(string path);
     }
 }
