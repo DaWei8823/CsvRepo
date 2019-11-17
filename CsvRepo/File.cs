@@ -29,8 +29,8 @@ namespace CsvRepo
         public void DeleteLine(int lineNumber)
         {
             var lines = System.IO.File.ReadAllLines(_path).ToList();
-            lines.RemoveAt(lineNumber);                     
-
+            lines.RemoveAt(lineNumber);
+            System.IO.File.WriteAllLines(_path, lines);
         }
 
         public void Dispose()

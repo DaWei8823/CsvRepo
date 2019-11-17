@@ -9,18 +9,18 @@ using System.Threading.Tasks;
 
 namespace CsvRepo
 {
-    public class Repo : IRepo
+    public class CsvRepo : ICsvRepo
     {
         private readonly string _baseDirectory;
         private readonly IFileProvider _fileProvider;
 
-        public Repo(string baseDirectory, IFileProvider fileProvider)
+        public CsvRepo(string baseDirectory, IFileProvider fileProvider)
         {
             _baseDirectory = baseDirectory;
             _fileProvider = fileProvider;
         }
 
-        public Repo(string baseDirectory)
+        public CsvRepo(string baseDirectory)
         {
             _baseDirectory = baseDirectory;
             _fileProvider = new FileProvider();
@@ -119,11 +119,31 @@ namespace CsvRepo
         }
 
         public void Delete<TItem, TKey>(TKey key)
+            => Delete<TItem>(key);
+
+        public void Update<TItem>(TItem item)
+        {
+            var primaryKey = GetPrimaryKeyValueOfItem(item);
+            Delete<TItem>(item);
+            Add(item);
+        }
+                
+        private object GetInternal(Type type, string key)
+        {
+            throw new NotImplementedException();
+        }
+
+        private object GetInternal(Type type, Func<object, bool> pred)
+        {
+            throw new NotImplementedException();
+        }
+
+        private void Delete<TItem>(object key)
         {
             var itemType = typeof(TItem);
             var primaryKeyFieldName = GetPrimaryKeyFieldName(typeof(TItem));
-            var primaryKeyIndex = GetPropertyIndex(itemType, primaryKeyFieldName));
-                        
+            var primaryKeyIndex = GetPropertyIndex(itemType, primaryKeyFieldName);
+
             if (!primaryKeyIndex.HasValue)
                 throw new ArgumentException($"Excepted primary key {primaryKeyFieldName} missing on  type {itemType.Name}");
 
@@ -142,24 +162,6 @@ namespace CsvRepo
                 file.DeleteLine(index);
             }
         }
-
-        public void Update<TItem>(TItem item)
-        {
-            throw new NotImplementedException();
-
-        }
-                
-        private object GetInternal(Type type, string key)
-        {
-            throw new NotImplementedException();
-        }
-
-        private object GetInternal(Type type, Func<object, bool> pred)
-        {
-            throw new NotImplementedException();
-        }
-
-            
         
         private string GetFileName<TItem>()
             => GetFilePath(typeof(TItem));
@@ -230,13 +232,25 @@ namespace CsvRepo
                 throw new ArgumentException($"Cannot find foreign key {foreingKey} reference to {parentType.Name} on type {childType.Name}");
 
             return cells => GetInternal(parentType, cells[foreignKeyIndex.Value]);
-        }    
+        }
+
+        private static object GetPrimaryKeyValueOfItem(object obj)
+        {
+            var itemType = obj.GetType();
+            var primaryKeyFieldName = GetPrimaryKeyFieldName(itemType);
+            var primaryKeyIndex = GetPropertyIndex(itemType, primaryKeyFieldName);
+
+            if (!primaryKeyIndex.HasValue)
+                throw new ArgumentException($"Excepted primary key {primaryKeyFieldName} missing on  type {itemType.Name}");
+
+            return itemType.GetProperties()[primaryKeyIndex.Value].GetValue(obj);
+        }
 
         private static int? GetPropertyIndex(Type type, string propertyName)
             => type.GetProperties()
                 .Select((p, i) => new { property = p, index = i })
                 .SingleOrDefault(a => a.property.Name == propertyName)
-            ?.index;   
+            ?.index;
 
         private static string GetPrimaryKeyFieldName(Type type)
             => $"{type.Name}Id";
@@ -245,26 +259,39 @@ namespace CsvRepo
         private static readonly IDictionary<Type, Func<int, string[], object>> PropertyInstantiatorMapping
             = new Dictionary<Type, Func<int, string[], object>>
         {
-            { typeof(int), (index, cells) => int.TryParse(cells[index], out int result) ? result : 0 }
+            { typeof(int), (index, cells) => int.TryParse(cells[index], out int result) ? result : 0 },
+            { typeof(int?), (index, cells) => int.TryParse(cells[index], out int result) ? result : (int?)null },
+            { typeof(string), (index, cells) => cells[index] },
+            { typeof(float), (index, cells) => float.TryParse(cells[index], out float result) ? result : 0 },
+            { typeof(float?), (index, cells) => float.TryParse(cells[index], out float result) ? result : (float?)null },
+            { typeof(double), (index, cells) => double.TryParse(cells[index], out double result) ? result : 0 },
+            { typeof(double?), (index, cells) => double.TryParse(cells[index], out double result) ? result : (double?)null },
+            { typeof(decimal), (index, cells) => decimal.TryParse(cells[index], out decimal result) ? result : 0 },
+            { typeof(decimal?), (index, cells) => decimal.TryParse(cells[index], out decimal result) ? result : (decimal?)null },
+            { typeof(char), (index, cells) => char.TryParse(cells[index], out char result) ? result : ' ' },
+            { typeof(char?), (index, cells) => char.TryParse(cells[index], out char result) ? result : (char?)null },
+            { typeof(bool), (index, cells) => bool.TryParse(cells[index], out bool result) ? result : false },
+            { typeof(bool?), (index, cells) => bool.TryParse(cells[index], out bool result) ? result : (bool?)null },
+            { typeof(DateTime), (index, cells) => DateTime.TryParse(cells[index], out DateTime result) ? result : DateTime.MinValue },
+            { typeof(DateTime?), (index, cells) => DateTime.TryParse(cells[index], out DateTime result) ? result : (DateTime?)null }
         };
 
         private static string GetHeader(Type type)
             => GetCsvLine(type.GetProperties().Select(p => p.Name));
         
-
         private static string GetCsvLine(object obj)
         {
             var propValues = obj.GetType()
                 .GetProperties()
                 .Select(p => p.GetValue(obj).ToString());
 
-            return GetCsvLine(propValues);
+            return Csvify(propValues);
         }
 
         private static string Csvify(IEnumerable<string> items)
             => string.Join(",", items.Select(p => $"\"{p.ToString()}\""));
 
         private string[] Split(string line)
-            => line.Trim('"').Replace("\",\"", "~").Split('~')
+            => line.Trim('"').Replace("\",\"", "~").Split('~');
     }
 }

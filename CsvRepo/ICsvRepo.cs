@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace CsvRepo
 {
-    public interface IRepo
+    public interface ICsvRepo
     {
         ICollection<TItem> Get<TItem>() where TItem : class;
         TItem Get<TItem, TKey>(TKey key) where TItem : class;
