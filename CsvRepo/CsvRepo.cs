@@ -27,25 +27,37 @@ namespace CsvRepo
         }
 
 
-        public IEnumerable<TItems> Get<TItems>() where TItems : class
+        public ICollection<TItem> Get<TItem>() where TItem : class
         {
-            var itemType = typeof(TItems);
-            var path = GetFileName(itemType);
+            var itemType = typeof(TItem);
+            var path = GetFilePath(itemType);
+
+            if (!_fileProvider.Exists(path))
+                return Enumerable.Empty<TItem>().ToList();
+
             var instantiate = GetInstantiationFunc(itemType);
+
+            var items = new List<TItem>();
 
             using (var file = _fileProvider.GetFile(path))
             {
                 string line;
                 file.ReadLine(); // advance reader past the header line
                 while ((line = file.ReadLine()) != null)
-                    yield return instantiate(Split(line)) as TItems;
+                     items.Add(instantiate(Split(line)) as TItem);
             }
+
+            return items;
         }
 
         public TItem Get<TItem, TKey>(TKey key) where TItem : class
         {
             var itemType = typeof(TItem);
-            var path = GetFileName(itemType);
+            var path = GetFilePath(itemType);
+
+            if (!_fileProvider.Exists(path))
+                throw new ArgumentException($"Cannot find element of type {itemType.Name} with primary key value {key.ToString()}.  Cannot find file {path}");
+
             var instantiate = GetInstantiationFunc(itemType);
 
             var primaryKeyFieldName = GetPrimaryKeyFieldName(itemType);
@@ -62,23 +74,26 @@ namespace CsvRepo
                 {
                     var cells = Split(line);
                     if (string.Equals(cells[primaryKeyIndex.Value], key.ToString()))
-                        return instantiate(Split(line)) as TItem;
-                }
-
-                throw new InvalidOperationException($"Could not find {itemType.Name}  value of {key.ToString()} for primary key {primaryKeyFieldName}");
+                        return instantiate(cells) as TItem;
+                }               
             }
+
+            throw new InvalidOperationException($"Could not find {itemType.Name}  value of {key.ToString()} for primary key {primaryKeyFieldName}");
+
         }
 
 
         public void Add<TItem>(TItem item)
         {
             var itemType = typeof(TItem);
-            var path = GetFileName(itemType);
+            var path = GetFilePath(itemType);
 
             if (_fileProvider.Exists(path))
                 using (var file = _fileProvider.GetFile(path))
                     file.AppendLine(GetCsvLine(item));
             
+
+            //ToDo: primary key constraint!
             using (var file = _fileProvider.Create(path))
             {
                 file.AppendLine(GetHeader(itemType));
@@ -89,7 +104,7 @@ namespace CsvRepo
         public void AddRange<TItem>(IEnumerable<TItem> items)
         {
             var itemType = typeof(TItem);
-            var path = GetFileName(itemType);
+            var path = GetFilePath(itemType);
 
 
             if (_fileProvider.Exists(path))
@@ -103,19 +118,35 @@ namespace CsvRepo
             }
         }
 
-        public void Delete<TItem>(TItem item)
-        {
-            throw new NotImplementedException();
-        }
-
         public void Delete<TItem, TKey>(TKey key)
         {
-            throw new NotImplementedException();
+            var itemType = typeof(TItem);
+            var primaryKeyFieldName = GetPrimaryKeyFieldName(typeof(TItem));
+            var primaryKeyIndex = GetPropertyIndex(itemType, primaryKeyFieldName));
+                        
+            if (!primaryKeyIndex.HasValue)
+                throw new ArgumentException($"Excepted primary key {primaryKeyFieldName} missing on  type {itemType.Name}");
+
+            var path = GetFilePath(itemType);
+
+            using (var file = _fileProvider.GetFile(path))
+            {
+                var index = 0;
+                var lookupString = key.ToString();
+                string line;
+
+                while ((line = file.ReadLine()) != null)
+                    if (string.Equals(Split(line)[primaryKeyIndex.Value], lookupString))
+                        break;
+
+                file.DeleteLine(index);
+            }
         }
 
         public void Update<TItem>(TItem item)
         {
             throw new NotImplementedException();
+
         }
                 
         private object GetInternal(Type type, string key)
@@ -124,14 +155,16 @@ namespace CsvRepo
         }
 
         private object GetInternal(Type type, Func<object, bool> pred)
-            => ;
+        {
+            throw new NotImplementedException();
+        }
+
             
         
-
         private string GetFileName<TItem>()
-            => GetFileName(typeof(TItem));
+            => GetFilePath(typeof(TItem));
 
-        private string GetFileName(Type t)
+        private string GetFilePath(Type t)
             => Path.Combine(_baseDirectory, $"{t.Name}.csv");
         
 

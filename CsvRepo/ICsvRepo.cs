@@ -8,13 +8,12 @@ namespace CsvRepo
 {
     public interface IRepo
     {
-        IEnumerable<TItem> Get<TItem>() where TItem : class;
+        ICollection<TItem> Get<TItem>() where TItem : class;
         TItem Get<TItem, TKey>(TKey key) where TItem : class;
 
         void Add<TItem>(TItem item);
         void AddRange<TItem>(IEnumerable<TItem> items);
         void Update<TItem>(TItem item);
-        void Delete<TItem>(TItem item);
         void Delete<TItem, TKey>(TKey key);
     }
 }

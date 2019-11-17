@@ -9,6 +9,7 @@ namespace CsvRepo
     public interface IFile : IDisposable
     {
         string ReadLine();
-        void AppendLine(string line);        
+        void AppendLine(string line);
+        void DeleteLine(int lineNumber);
     }
 }

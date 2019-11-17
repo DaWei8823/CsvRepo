@@ -43,7 +43,7 @@
   <ItemGroup>
     <Compile Include="CsvRepo.cs" />
     <Compile Include="FileProvider.cs" />
-    <Compile Include="FileReader.cs" />
+    <Compile Include="File.cs" />
     <Compile Include="ICsvRepo.cs" />
     <Compile Include="IFileProvider.cs" />
     <Compile Include="IFile.cs" />
