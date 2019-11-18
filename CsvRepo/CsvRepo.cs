@@ -27,58 +27,14 @@ namespace CsvRepo
         }
 
         public ICollection<TItem> Get<TItem>() where TItem : class
-        {
-            var itemType = typeof(TItem);
-            var path = GetFilePath(itemType);
-
-            if (!_fileProvider.Exists(path))
-                return Enumerable.Empty<TItem>().ToList();
-
-            var instantiate = GetInstantiationFunc(itemType);
-
-            var items = new List<TItem>();
-
-            using (var file = _fileProvider.GetFile(path))
-            {
-                string line;
-                file.ReadLine(); // advance reader past the header line
-                while ((line = file.ReadLine()) != null)
-                     items.Add(instantiate(Split(line)) as TItem);
-            }
-
-            return items;
-        }
+            => GetInternal(typeof(TItem))
+                .Select(o => o as TItem)
+                .ToList();
+        
 
         public TItem Get<TItem, TKey>(TKey key) where TItem : class
-        {
-            var itemType = typeof(TItem);
-            var path = GetFilePath(itemType);
-
-            if (!_fileProvider.Exists(path))
-                throw new ArgumentException($"Cannot find element of type {itemType.Name} with primary key value {key.ToString()}.  Cannot find file {path}");
-
-            var instantiate = GetInstantiationFunc(itemType);
-
-            var primaryKeyFieldName = GetPrimaryKeyFieldName(itemType);
-            var primaryKeyIndex = GetPropertyIndex(itemType, primaryKeyFieldName);
-
-            if (!primaryKeyIndex.HasValue)
-                throw new ArgumentException($"Excepted primary key {primaryKeyFieldName} missing on  type {itemType.Name}");
-            
-            using (var file = _fileProvider.GetFile(path))
-            {
-                string line;
-                file.ReadLine(); // advance reader past the header line
-                while ((line = file.ReadLine()) != null)
-                {
-                    var cells = Split(line);
-                    if (string.Equals(cells[primaryKeyIndex.Value], key.ToString()))
-                        return instantiate(cells) as TItem;
-                }               
-            }
-
-            throw new InvalidOperationException($"Could not find {itemType.Name}  value of {key.ToString()} for primary key {primaryKeyFieldName}");
-        }
+            => GetInternal(typeof(TItem), key.ToString()) as TItem;
+        
 
         public void Add<TItem>(TItem item)
         {
@@ -125,33 +81,58 @@ namespace CsvRepo
             Add(item);
         }
 
-        private object GetInternal(Type itemType)
+        private ICollection<object> GetInternal(Type itemType)
         {
-            throw new NotImplementedException();
+            
+            var path = GetFilePath(itemType);
+
+            if (!_fileProvider.Exists(path))
+                return Enumerable.Empty<object>().ToList();
+
+            var instantiate = GetInstantiationFunc(itemType);
+
+            var items = new List<object>();
+
+            using (var file = _fileProvider.GetFile(path))
+            {
+                string line;
+                file.ReadLine(); // advance reader past the header line
+                while ((line = file.ReadLine()) != null)
+                    items.Add(instantiate(Split(line)));
+            }
+
+            return items;
         }
 
-            private object GetInternal(Type itemType, string key)
+        private object GetInternal(Type itemType, string key)
         {
 
-            throw new NotImplementedException();
-            //var path = GetFilePath(itemType);
+            var path = GetFilePath(itemType);
 
-            //if (!_fileProvider.Exists(path))
-            //    return Enumerable.Empty<TItem>().ToList();
+            if (!_fileProvider.Exists(path))
+                throw new ArgumentException($"Cannot find element of type {itemType.Name} with primary key value {key.ToString()}.  Cannot find file {path}");
 
-            //var instantiate = GetInstantiationFunc(itemType);
+            var instantiate = GetInstantiationFunc(itemType);
 
-            //var items = new List<TItem>();
+            var primaryKeyFieldName = GetPrimaryKeyFieldName(itemType);
+            var primaryKeyIndex = GetPropertyIndex(itemType, primaryKeyFieldName);
 
-            //using (var file = _fileProvider.GetFile(path))
-            //{
-            //    string line;
-            //    file.ReadLine(); // advance reader past the header line
-            //    while ((line = file.ReadLine()) != null)
-            //        items.Add(instantiate(Split(line)) as TItem);
-            //}
+            if (!primaryKeyIndex.HasValue)
+                throw new ArgumentException($"Excepted primary key {primaryKeyFieldName} missing on  type {itemType.Name}");
 
-            //return items;
+            using (var file = _fileProvider.GetFile(path))
+            {
+                string line;
+                file.ReadLine(); // advance reader past the header line
+                while ((line = file.ReadLine()) != null)
+                {
+                    var cells = Split(line);
+                    if (string.Equals(cells[primaryKeyIndex.Value], key.ToString()))
+                        return instantiate(cells);
+                }
+            }
+
+            throw new InvalidOperationException($"Could not find {itemType.Name}  value of {key.ToString()} for primary key {primaryKeyFieldName}");
         }
 
 

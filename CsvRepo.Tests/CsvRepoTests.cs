@@ -63,17 +63,25 @@ namespace CsvRepo.Tests
 
         private void SetupMockFile(string file, string[] lines)
         {
+            _mockFileProvider
+                .Setup(fp => fp.Exists(file))
+                .Returns(true);
+
+            _mockFileProvider
+                .Setup(fp => fp.GetFile(file))
+                .Returns(SetupFileWithSequence(lines));          
+              
+        }
+
+        private IFile SetupFileWithSequence(string[] lines)
+        {
             var mockFile = new Mock<IFile>();
-            _mockFileProvider.Setup(fp => fp.Exists(file)).Returns(true);
-            _mockFileProvider.Setup(fp => fp.GetFile(file)).Returns(mockFile.Object);
-
             var sequentialResult = mockFile.SetupSequence(f => f.ReadLine());
-
-
 
             foreach (var line in lines)
                 sequentialResult = sequentialResult.Returns(line);
-                
+
+            return mockFile.Object;
         }
     }
 }

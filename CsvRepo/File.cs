@@ -16,6 +16,7 @@ namespace CsvRepo
 
         public File(string path)
         {
+            _path = path;
             _streamReader = new StreamReader(path);
             _streamWriter = new StreamWriter(path);
         }
