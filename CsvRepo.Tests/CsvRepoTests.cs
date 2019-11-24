@@ -14,14 +14,14 @@ namespace CsvRepo.Tests
     public class CsvRepoTests
     {
 
-        private readonly Mock<IFileProvider> _mockFileProvider = new Mock<IFileProvider>();
+        private readonly IFileProvider _mockFileProvider = new MockFileProvider(new Dictionary<string,IFile>());
 
         private CsvRepo _testRepo;
 
         [SetUp]
         public void Setup()
         {
-            _testRepo = new CsvRepo("baseDir", _mockFileProvider.Object);
+            _testRepo = new CsvRepo("baseDir", _mockFileProvider);
         }
 
 
@@ -61,27 +61,13 @@ namespace CsvRepo.Tests
             Assert.AreEqual("Chair", orders[1].Item.Name);
         }
 
-        private void SetupMockFile(string file, string[] lines)
+        private void SetupMockFile(string path, string[] lines)
         {
-            _mockFileProvider
-                .Setup(fp => fp.Exists(file))
-                .Returns(true);
-
-            _mockFileProvider
-                .Setup(fp => fp.GetFile(file))
-                .Returns(() => SetupFileWithSequence(lines));          
-              
-        }
-
-        private IFile SetupFileWithSequence(string[] lines)
-        {
-            var mockFile = new Mock<IFile>();
-            var sequentialResult = mockFile.SetupSequence(f => f.ReadLine());
+            var file = _mockFileProvider.Create(path);
 
             foreach (var line in lines)
-                sequentialResult = sequentialResult.Returns(line);
-
-            return mockFile.Object;
+                file.AppendLine(line);        
+              
         }
     }
 }
