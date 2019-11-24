@@ -69,7 +69,7 @@ namespace CsvRepo.Tests
 
             _mockFileProvider
                 .Setup(fp => fp.GetFile(file))
-                .Returns(SetupFileWithSequence(lines));          
+                .Returns(() => SetupFileWithSequence(lines));          
               
         }
 
