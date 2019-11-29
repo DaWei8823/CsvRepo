@@ -26,8 +26,7 @@ namespace CsvRepo.Tests
             => _lines.RemoveAt(lineNumber);
 
 
-        public void Dispose()
-            => readerAt = 0;
+        public void Dispose() { }
 
 
         public string ReadLine()

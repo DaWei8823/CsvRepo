@@ -9,29 +9,28 @@ namespace CsvRepo.Tests
     internal class MockFileProvider : IFileProvider
     {
 
-        private readonly IDictionary<string, IFile> _pathToFileMapping;
+        private readonly IDictionary<string, IList<string>> _pathToFileLinesMapping;
 
-        public MockFileProvider(IDictionary<string,IFile> pathToFileMapping)
+        public MockFileProvider(IDictionary<string,IList<string>> pathToFileLinesMapping)
         {
-            _pathToFileMapping = pathToFileMapping;
+            _pathToFileLinesMapping = pathToFileLinesMapping;
         }
 
         public IFile Create(string path)
         {
-            var file = new MockFile(new List<string>());
-            _pathToFileMapping.Add(path, file);
-            return file;
+            _pathToFileLinesMapping.Add(path, new List<string>());
+            return GetFile(path);
         }
 
         public bool Exists(string path)
-            => _pathToFileMapping.ContainsKey(path);
+            => _pathToFileLinesMapping.ContainsKey(path);
             
         
 
         public IFile GetFile(string path)
         {
-            if (_pathToFileMapping.ContainsKey(path))
-                return _pathToFileMapping[path];
+            if (_pathToFileLinesMapping.ContainsKey(path))
+                return new MockFile(_pathToFileLinesMapping[path]);
 
             throw new InvalidOperationException($"Cannot find file at path {path}");
 

@@ -14,7 +14,7 @@ namespace CsvRepo.Tests
     public class CsvRepoTests
     {
 
-        private readonly IFileProvider _mockFileProvider = new MockFileProvider(new Dictionary<string,IFile>());
+        private readonly IFileProvider _mockFileProvider = new MockFileProvider(new Dictionary<string,IList<string>>());
 
         private CsvRepo _testRepo;
 
