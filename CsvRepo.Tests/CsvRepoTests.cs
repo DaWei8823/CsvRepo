@@ -59,7 +59,10 @@ namespace CsvRepo.Tests
             Assert.AreEqual("Book", orders[1].Item.Name);
             Assert.AreEqual("Andrea", orders[1].Customer.Name);
             Assert.AreEqual("Chair", orders[1].Item.Name);
+            //TODO: Test recursive reference with navigation properties
         }
+
+        
 
         private void SetupMockFile(string path, string[] lines)
         {

@@ -9,6 +9,8 @@ using System.Threading.Tasks;
 
 namespace CsvRepo
 {
+
+    //BIG TODO: Seperate reflection logic from other file reading logic 
     public class CsvRepo : ICsvRepo
     {
         private readonly string _baseDirectory;
@@ -27,9 +29,18 @@ namespace CsvRepo
         }
 
         public ICollection<TItem> Get<TItem>() where TItem : class
-            => GetInternal(typeof(TItem))
+        {
+            var items = GetInternal(typeof(TItem))
                 .Select(o => o as TItem)
                 .ToList();
+
+            foreach (var i in items)
+                FillNavigationProperties(i);
+
+            return items;
+
+
+        }
         
 
         public TItem Get<TItem, TKey>(TKey key) where TItem : class
@@ -89,7 +100,7 @@ namespace CsvRepo
             if (!_fileProvider.Exists(path))
                 return Enumerable.Empty<object>().ToList();
 
-            var instantiate = GetInstantiationFunc(itemType);
+            var basicInstantiator = GetBasicPropertyInstantiatorFunc(itemType);
 
             var items = new List<object>();
 
@@ -98,7 +109,7 @@ namespace CsvRepo
                 string line;
                 file.ReadLine(); // advance reader past the header line
                 while ((line = file.ReadLine()) != null)
-                    items.Add(instantiate(Split(line)));
+                    items.Add(basicInstantiator(Split(line)));
             }
 
             return items;
@@ -110,9 +121,9 @@ namespace CsvRepo
             var path = GetFilePath(itemType);
 
             if (!_fileProvider.Exists(path))
-                throw new ArgumentException($"Cannot find element of type {itemType.Name} with primary key value {key.ToString()}.  Cannot find file {path}");
+                throw new ArgumentException($"Cannot find file {path}");
 
-            var instantiate = GetInstantiationFunc(itemType);
+            var basicInstantiator = GetBasicPropertyInstantiatorFunc(itemType);
 
             var primaryKeyFieldName = GetPrimaryKeyFieldName(itemType);
             var primaryKeyIndex = GetPropertyIndex(itemType, primaryKeyFieldName);
@@ -128,7 +139,7 @@ namespace CsvRepo
                 {
                     var cells = Split(line);
                     if (string.Equals(cells[primaryKeyIndex.Value], key.ToString()))
-                        return instantiate(cells);
+                        return basicInstantiator(cells);
                 }
             }
 
@@ -168,17 +179,83 @@ namespace CsvRepo
             => Path.Combine(_baseDirectory, $"{t.Name}.csv");
         
 
+
+
         //ToDo: What if columns are not in order that properties are defined in the class?
         //TODO: What if primary key has different name
+                             
         private Func<string[], object> GetInstantiationFunc(Type objectType)
-        {            
-            var propTypeAndInstantiators = objectType.GetProperties()
+        {           
+            
+            var navigationProperties = objectType.GetProperties()
+                .Where(p => ! PropertyInstantiatorMapping.ContainsKey(p.PropertyType));
+
+            return cells =>
+            {
+                var instance = GetBasicPropertyInstantiatorFunc(objectType)(cells);
+
+                FillNavigationProperties(instance);
+                return instance;
+            };
+        }
+
+        private void FillNavigationProperties(object obj)
+        {
+            var navigationProperties = obj.GetType().GetProperties()
+                .Where(p => ! PropertyInstantiatorMapping.ContainsKey(p.PropertyType));
+
+            foreach (var property in navigationProperties)
+            {
+                if (typeof(IEnumerable).IsAssignableFrom(property.PropertyType) && property.PropertyType.IsGenericType)
+                    FillChildNavigationProperty(obj, property);
+                else
+                    FillParentNavigationProperty(obj, property);
+
+            }
+        }
+
+        void FillChildNavigationProperty(object parentObject, PropertyInfo childProperty)
+        {
+            var children = (GetInternal(childProperty.PropertyType) as IEnumerable<object>)
+                .Where(o => IsChildOf(parentObject, o))
+                .ToList();
+
+            //Problem: Can't convert!!
+            childProperty.SetValue(parentObject, Convert.ChangeType(children, childProperty.PropertyType));
+
+            var childReferenceToParent = childProperty.PropertyType
+                .GetProperties()
+                .SingleOrDefault(p => p.PropertyType == parentObject.GetType());
+
+            foreach (var child in children)
+            {
+                childReferenceToParent.SetValue(child, parentObject);
+                FillNavigationProperties(child);
+            }            
+        }
+
+        void FillParentNavigationProperty(object childObject, PropertyInfo parentProperty)
+        {
+            var foreingKeyValue = childObject.GetType()
+                .GetProperties()
+                .SingleOrDefault(p => string.Equals(p.Name, GetPrimaryKeyFieldName(parentProperty.PropertyType)))
+                ?.GetValue(childObject)
+                ?.ToString();
+
+            var parent = GetInternal(parentProperty.PropertyType, foreingKeyValue);
+            parentProperty.SetValue(childObject, parent);
+            FillNavigationProperties(parent);
+
+        }
+
+        private Func<string[], object> GetBasicPropertyInstantiatorFunc(Type objectType)
+        {
+            var basicPropertiesAndInstantiators = objectType.GetProperties()
+                .Where(p => PropertyInstantiatorMapping.ContainsKey(p.PropertyType))
                 .Select((property, index) =>
                     new
                     {
-                        instantiator = PropertyInstantiatorMapping.ContainsKey(property.PropertyType)
-                                ? PropertyInstantiatorMapping[property.PropertyType].Curry(index)
-                                : GetNavigationPropertyInstantiator(objectType, property.PropertyType),
+                        instantiator = PropertyInstantiatorMapping[property.PropertyType].Curry(index),
                         property
                     }
                 ).ToList();
@@ -186,7 +263,7 @@ namespace CsvRepo
             return cells =>
             {
                 var instance = Activator.CreateInstance(objectType);
-                propTypeAndInstantiators.ForEach(pti => pti.property.SetValue(instance, pti.instantiator(cells)));
+                basicPropertiesAndInstantiators.ForEach(pti => pti.property.SetValue(instance, pti.instantiator(cells)));
                 return instance;
             };
         }
@@ -194,7 +271,7 @@ namespace CsvRepo
         private Func<string[], object> GetNavigationPropertyInstantiator(Type objectType, Type propertyType)
             => typeof(IEnumerable).IsAssignableFrom(propertyType) && propertyType.IsGenericType 
                 ? MakeParentToChildInstantiationFunc(objectType, propertyType.GetGenericArguments()[0])
-                : MakeChildToParentInstantiationFunc(propertyType, objectType);               
+                : MakeChildToParentInstantiationFunc(propertyType, objectType);
 
         private Func<string[], object> MakeParentToChildInstantiationFunc(Type parentType, Type childType)
         {
@@ -230,6 +307,20 @@ namespace CsvRepo
                 throw new ArgumentException($"Cannot find foreign key {foreingKey} reference to {parentType.Name} on type {childType.Name}");
 
             return cells => GetInternal(parentType, cells[foreignKeyIndex.Value]);
+        }
+
+        private static bool IsChildOf(object testParent, object testChild)
+        {
+            var primaryKeyFieldName = GetPrimaryKeyFieldName(testParent.GetType());
+
+            var foreignKeyProp = testChild.GetType()
+                .GetProperties()
+                .SingleOrDefault(p => p.Name == primaryKeyFieldName);
+
+            if (foreignKeyProp == null)
+                return false;
+
+            return object.Equals(GetPrimaryKeyValueOfItem(testParent), foreignKeyProp.GetValue(testChild));
         }
 
         private static object GetPrimaryKeyValueOfItem(object obj)
