@@ -10,6 +10,5 @@ namespace CsvRepo.Sample
     {
         public int ItemId { get; set; }
         public string Name { get; set; }
-        public IEnumerable<Order> Orders { get; set; }
     }
 }

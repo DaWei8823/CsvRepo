@@ -1,12 +1,7 @@
-﻿using CsvRepo.Sample;
-using System;
-using System.Collections;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace CsvRepo
 {
@@ -31,22 +26,29 @@ namespace CsvRepo
 
         public ICollection<TItem> Get<TItem>() where TItem : class
         {
-            var items = GetInternal(typeof(TItem))
-                .Select(o => o as TItem)
-                .ToList();
+            var path = GetFilePath(typeof(TItem));
 
-            foreach (var i in items)
-                FillNavigationProperties(i);
+            if (!_fileProvider.Exists(path))
+                return Enumerable.Empty<TItem>().ToList();
+
+            var items = new List<TItem>();
+
+            var instantiator = GetInstantiationFunc(typeof(TItem));
+
+            using (var file = _fileProvider.GetFile(path))
+            {
+                string line;
+                file.ReadLine(); // advance reader past the header line
+                while ((line = file.ReadLine()) != null)
+                    items.Add(instantiator(Split(line)) as TItem);
+            }
 
             return items;
-
-
         }
         
 
         public TItem Get<TItem, TKey>(TKey key) where TItem : class
-            => GetInternal(typeof(TItem), key.ToString()) as TItem;
-        
+            => GetInternal(typeof(TItem), key.ToString()) as TItem;        
 
         public void Add<TItem>(TItem item)
         {
@@ -57,7 +59,6 @@ namespace CsvRepo
                 using (var file = _fileProvider.GetFile(path))
                     file.AppendLine(GetCsvLine(item));
             
-
             //ToDo: primary key constraint!
             using (var file = _fileProvider.Create(path))
             {
@@ -93,28 +94,6 @@ namespace CsvRepo
             Add(item);
         }
 
-        private ICollection<object> GetInternal(Type itemType)
-        {
-            
-            var path = GetFilePath(itemType);
-
-            if (!_fileProvider.Exists(path))
-                return Enumerable.Empty<object>().ToList();
-
-            var basicInstantiator = GetBasicPropertyInstantiatorFunc(itemType);
-
-            var items = new List<object>();
-
-            using (var file = _fileProvider.GetFile(path))
-            {
-                string line;
-                file.ReadLine(); // advance reader past the header line
-                while ((line = file.ReadLine()) != null)
-                    items.Add(basicInstantiator(Split(line)));
-            }
-
-            return items;
-        }
 
         private object GetInternal(Type itemType, string key)
         {
@@ -124,7 +103,7 @@ namespace CsvRepo
             if (!_fileProvider.Exists(path))
                 throw new ArgumentException($"Cannot find file {path}");
 
-            var basicInstantiator = GetBasicPropertyInstantiatorFunc(itemType);
+            var instantiator = GetInstantiationFunc(itemType);
 
             var primaryKeyFieldName = GetPrimaryKeyFieldName(itemType);
             var primaryKeyIndex = GetPropertyIndex(itemType, primaryKeyFieldName);
@@ -140,7 +119,7 @@ namespace CsvRepo
                 {
                     var cells = Split(line);
                     if (string.Equals(cells[primaryKeyIndex.Value], key.ToString()))
-                        return basicInstantiator(cells);
+                        return instantiator(cells);
                 }
             }
 
@@ -186,78 +165,14 @@ namespace CsvRepo
         //TODO: What if primary key has different name
                              
         private Func<string[], object> GetInstantiationFunc(Type objectType)
-        {           
-            
-            var navigationProperties = objectType.GetProperties()
-                .Where(p => ! PropertyInstantiatorMapping.ContainsKey(p.PropertyType));
-
-            return cells =>
-            {
-                var instance = GetBasicPropertyInstantiatorFunc(objectType)(cells);
-
-                FillNavigationProperties(instance);
-                return instance;
-            };
-        }
-
-        private void FillNavigationProperties(object obj)
         {
-            var navigationProperties = obj.GetType().GetProperties()
-                .Where(p => ! PropertyInstantiatorMapping.ContainsKey(p.PropertyType));
-
-            foreach (var property in navigationProperties)
-            {
-                if (typeof(IEnumerable).IsAssignableFrom(property.PropertyType) && property.PropertyType.IsGenericType)
-                    FillChildNavigationProperty(obj, property);
-                else
-                    FillParentNavigationProperty(obj, property);
-
-            }
-        }
-
-        void FillChildNavigationProperty(object parentObject, PropertyInfo childProperty)
-        {
-            var childType = childProperty.PropertyType.GetGenericArguments()[0];
-
-            var children = (GetInternal(childType))
-                .Where(o => IsChildOf(parentObject, o));  
-
-            //Problem: Can't convert!!
-            childProperty.SetValue(parentObject, children);
-
-            var childReferenceToParent = childProperty.PropertyType
-                .GetProperties()
-                .SingleOrDefault(p => p.PropertyType == parentObject.GetType());
-
-            foreach (var child in children)
-            {
-                childReferenceToParent.SetValue(child, parentObject);
-                FillNavigationProperties(child);
-            }            
-        }
-
-        void FillParentNavigationProperty(object childObject, PropertyInfo parentProperty)
-        {
-            var foreingKeyValue = childObject.GetType()
-                .GetProperties()
-                .SingleOrDefault(p => string.Equals(p.Name, GetPrimaryKeyFieldName(parentProperty.PropertyType)))
-                ?.GetValue(childObject)
-                ?.ToString();
-
-            var parent = GetInternal(parentProperty.PropertyType, foreingKeyValue);
-            parentProperty.SetValue(childObject, parent);
-            FillNavigationProperties(parent);
-
-        }
-
-        private Func<string[], object> GetBasicPropertyInstantiatorFunc(Type objectType)
-        {
-            var basicPropertiesAndInstantiators = objectType.GetProperties()
-                .Where(p => PropertyInstantiatorMapping.ContainsKey(p.PropertyType))
+            var propTypeAndInstantiators = objectType.GetProperties()
                 .Select((property, index) =>
                     new
                     {
-                        instantiator = PropertyInstantiatorMapping[property.PropertyType].Curry(index),
+                        instantiator = PropertyInstantiatorMapping.ContainsKey(property.PropertyType)
+                                ? PropertyInstantiatorMapping[property.PropertyType].Curry(index)
+                                : GetNavigationPropertyInstantiator(objectType, property.PropertyType),
                         property
                     }
                 ).ToList();
@@ -265,65 +180,25 @@ namespace CsvRepo
             return cells =>
             {
                 var instance = Activator.CreateInstance(objectType);
-                basicPropertiesAndInstantiators.ForEach(pti => pti.property.SetValue(instance, pti.instantiator(cells)));
+                propTypeAndInstantiators.ForEach(pti => pti.property.SetValue(instance, pti.instantiator(cells)));
                 return instance;
             };
         }
 
+
+        //To Do: Implement two way navigation properties
         private Func<string[], object> GetNavigationPropertyInstantiator(Type objectType, Type propertyType)
-            => typeof(IEnumerable).IsAssignableFrom(propertyType) && propertyType.IsGenericType 
-                ? MakeParentToChildInstantiationFunc(objectType, propertyType.GetGenericArguments()[0])
-                : MakeChildToParentInstantiationFunc(propertyType, objectType);
-
-        private Func<string[], object> MakeParentToChildInstantiationFunc(Type parentType, Type childType)
         {
-            var primaryKeyFieldName = GetPrimaryKeyFieldName(parentType);
+            var foreingKey = GetPrimaryKeyFieldName(propertyType);
 
-            var primaryKeyIndex = GetPropertyIndex(parentType, primaryKeyFieldName);
-
-            if (primaryKeyIndex == null)
-                throw new ArgumentException($"Cannot find primary key {primaryKeyFieldName} in type {parentType.Name}");
-
-            var foreignKeyInChildTypeIndex = GetPropertyIndex(childType, primaryKeyFieldName);
-
-            if (foreignKeyInChildTypeIndex == null)
-                throw new ArgumentException($"Cannot find foreign key reference {primaryKeyFieldName} to {parentType.Name} in child type {childType.Name}");
-
-            return cells =>
-            {
-                Func<object, bool> predicate = obj => string.Equals(
-                    obj.GetType().GetProperties()[foreignKeyInChildTypeIndex.Value].GetValue(obj).ToString(),
-                    cells[primaryKeyIndex.Value]);
-
-                return (GetInternal(childType) as IEnumerable<object>).Where(predicate).ToList();
-            };
-        }
-
-        private Func<string[], object> MakeChildToParentInstantiationFunc(Type parentType, Type childType)
-        {
-            var foreingKey = GetPrimaryKeyFieldName(parentType);
-
-            var foreignKeyIndex = GetPropertyIndex(childType, foreingKey);
+            var foreignKeyIndex = GetPropertyIndex(objectType, foreingKey);
 
             if (foreignKeyIndex == null)
-                throw new ArgumentException($"Cannot find foreign key {foreingKey} reference to {parentType.Name} on type {childType.Name}");
+                throw new ArgumentException($"Cannot find foreign key {foreingKey} reference to {objectType.Name} on type {propertyType.Name}");
 
-            return cells => GetInternal(parentType, cells[foreignKeyIndex.Value]);
+            return cells => GetInternal(objectType, cells[foreignKeyIndex.Value]);
         }
 
-        private static bool IsChildOf(object testParent, object testChild)
-        {
-            var primaryKeyFieldName = GetPrimaryKeyFieldName(testParent.GetType());
-
-            var foreignKeyProp = testChild.GetType()
-                .GetProperties()
-                .SingleOrDefault(p => p.Name == primaryKeyFieldName);
-
-            if (foreignKeyProp == null)
-                return false;
-
-            return object.Equals(GetPrimaryKeyValueOfItem(testParent), foreignKeyProp.GetValue(testChild));
-        }
 
         private static object GetPrimaryKeyValueOfItem(object obj)
         {
