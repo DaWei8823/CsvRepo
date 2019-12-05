@@ -216,18 +216,24 @@ namespace CsvRepo
 
         void FillChildNavigationProperty(object parentObject, PropertyInfo childProperty)
         {
-            var children = (GetInternal(childProperty.PropertyType) as IEnumerable<object>)
+
+            var childType = childProperty.PropertyType.GetGenericArguments()[0];
+
+
+
+            var children = (GetInternal(childType) as IEnumerable<object>)
                 .Where(o => IsChildOf(parentObject, o))
-                .ToList();
+                .ToList().ConvertAll(o => Convert.ChangeType(o, childType));
+    
 
             //Problem: Can't convert!!
-            childProperty.SetValue(parentObject, Convert.ChangeType(children, childProperty.PropertyType));
+            childProperty.SetMethod.Invoke(parentObject, new object[] { children });
 
             var childReferenceToParent = childProperty.PropertyType
                 .GetProperties()
                 .SingleOrDefault(p => p.PropertyType == parentObject.GetType());
 
-            foreach (var child in children)
+            foreach (var child in children as IEnumerable)
             {
                 childReferenceToParent.SetValue(child, parentObject);
                 FillNavigationProperties(child);

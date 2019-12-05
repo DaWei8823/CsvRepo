@@ -41,7 +41,7 @@ namespace CsvRepo.Tests
         }
 
         [Test]
-        public void GivenClassParentNavigationProperties_WhenGetAll_SetParentValuesProperly()
+        public void GivenClassWithParentNavigationProperties_WhenGetAll_SetParentValuesProperly()
         {
             //Arrange
             SetupMockFile("baseDir\\Order.csv", MockCsvs.MockOrderLines);
