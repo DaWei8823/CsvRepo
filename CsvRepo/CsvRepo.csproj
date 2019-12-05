@@ -50,5 +50,11 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Util.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CsvRepo.Sample\CsvRepo.Sample.csproj">
+      <Project>{B6EFDE72-6B53-4DA1-B481-EF301C315C03}</Project>
+      <Name>CsvRepo.Sample</Name>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
