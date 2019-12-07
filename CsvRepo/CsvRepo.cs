@@ -71,8 +71,7 @@ namespace CsvRepo
         {
             var itemType = typeof(TItem);
             var path = GetFilePath(itemType);
-
-
+            
             if (_fileProvider.Exists(path))
                 using (var file = _fileProvider.GetFile(path))
                     items.Select(i => GetCsvLine(i)).ToList().ForEach(file.AppendLine);
@@ -115,7 +114,7 @@ namespace CsvRepo
             {
                 string line;
                 file.ReadLine(); // advance reader past the header line
-                while ((line = file.ReadLine()) != null)
+                while ((line = file.ReadLine()) != null) 
                 {
                     var cells = Split(line);
                     if (string.Equals(cells[primaryKeyIndex.Value], key.ToString()))
@@ -157,10 +156,7 @@ namespace CsvRepo
 
         private string GetFilePath(Type t)
             => Path.Combine(_baseDirectory, $"{t.Name}.csv");
-        
-
-
-
+                       
         //ToDo: What if columns are not in order that properties are defined in the class?
         //TODO: What if primary key has different name
                              
@@ -196,7 +192,7 @@ namespace CsvRepo
             if (foreignKeyIndex == null)
                 throw new ArgumentException($"Cannot find foreign key {foreingKey} reference to {objectType.Name} on type {propertyType.Name}");
 
-            return cells => GetInternal(objectType, cells[foreignKeyIndex.Value]);
+            return cells => GetInternal(propertyType, cells[foreignKeyIndex.Value]);
         }
 
 
