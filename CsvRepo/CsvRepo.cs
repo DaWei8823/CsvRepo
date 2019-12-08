@@ -47,9 +47,11 @@ namespace CsvRepo
         }
         
 
-        public TItem Get<TItem, TKey>(TKey key) where TItem : class
-            => GetInternal(typeof(TItem), key.ToString()) as TItem;        
+        public TItem Get<TItem>(object key) where TItem : class
+            => GetInternal(typeof(TItem), key.ToString()) as TItem;
 
+
+        //ToDo: primary key constraint!
         public void Add<TItem>(TItem item)
         {
             var itemType = typeof(TItem);
@@ -58,13 +60,12 @@ namespace CsvRepo
             if (_fileProvider.Exists(path))
                 using (var file = _fileProvider.GetFile(path))
                     file.AppendLine(GetCsvLine(item));
-            
-            //ToDo: primary key constraint!
-            using (var file = _fileProvider.Create(path))
-            {
-                file.AppendLine(GetHeader(itemType));
-                file.AppendLine(GetCsvLine(item));
-            }   
+            else            
+                using (var file = _fileProvider.Create(path))
+                {
+                    file.AppendLine(GetHeader(itemType));
+                    file.AppendLine(GetCsvLine(item));
+                }
         }
 
         public void AddRange<TItem>(IEnumerable<TItem> items)

@@ -14,13 +14,15 @@ namespace CsvRepo.Tests
     public class CsvRepoTests
     {
 
-        private readonly IFileProvider _mockFileProvider = new MockFileProvider(new Dictionary<string,IList<string>>());
+        private IFileProvider _mockFileProvider;
 
         private CsvRepo _testRepo;
 
         [SetUp]
         public void Setup()
         {
+
+            _mockFileProvider = new MockFileProvider(new Dictionary<string, IList<string>>());
             _testRepo = new CsvRepo("baseDir", _mockFileProvider);
         }
 
@@ -58,11 +60,48 @@ namespace CsvRepo.Tests
             Assert.AreEqual("Andrea", orders[1].Customer.Name);
             Assert.AreEqual("Book", orders[1].Item.Name);
             Assert.AreEqual("Andrea", orders[1].Customer.Name);
-            Assert.AreEqual("Chair", orders[1].Item.Name);
+            Assert.AreEqual("Book", orders[1].Item.Name);
             //TODO: Test recursive reference with navigation properties
         }
 
+
+        [Test]
+        public void GivenKey_WhenGet_ReturnCorrectObject()
+        {
+            //Arrange
+            SetupMockFile("baseDir\\Item.csv", MockCsvs.MockItemLines);
+
+            //Act
+            var item = _testRepo.Get<Item>(43);
+
+            //Assert
+            Assert.AreEqual(43, item.ItemId);
+            Assert.AreEqual("Chair", item.Name);
+        }
         
+
+        [Test]
+        public void GivenFileExists_WhenAdd_AppendCorrectLinesToFile()
+        {
+            //Arrange
+            SetupMockFile("baseDir\\Customer.csv", MockCsvs.MockCustomerLines);
+
+            var customer = new Customer
+            {
+                CustomerId = 3,
+                Name = "Gilbert"
+            };
+
+            //Act
+            _testRepo.Add(customer);
+            var lines = GetAllLines("baseDir\\Customer.csv");
+
+            //Assert
+            Assert.AreEqual(MockCsvs.MockCustomerLines[0], lines[0]);
+            Assert.AreEqual(MockCsvs.MockCustomerLines[1], lines[1]);
+            Assert.AreEqual(MockCsvs.MockCustomerLines[2], lines[2]);
+            Assert.AreEqual("\"3\",\"Gilbert\"", lines[3]);
+        }
 
         private void SetupMockFile(string path, string[] lines)
         {
@@ -72,5 +111,20 @@ namespace CsvRepo.Tests
                 file.AppendLine(line);        
               
         }
+
+        private IList<string> GetAllLines(string filePath)
+        {
+            var list = new List<string>();
+
+            using (var file = _mockFileProvider.GetFile(filePath))
+            {
+                string line;
+                while ((line = file.ReadLine()) != null)
+                    list.Add(line);
+            }
+
+            return list;
+        }
+
     }
 }
