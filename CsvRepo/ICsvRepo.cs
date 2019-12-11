@@ -10,6 +10,6 @@ namespace CsvRepo
         void Add<TItem>(TItem item);
         void AddRange<TItem>(IEnumerable<TItem> items);
         void Update<TItem>(TItem item);
-        void Delete<TItem, TKey>(TKey key);
+        void Delete<TItem>(object key);
     }
 }

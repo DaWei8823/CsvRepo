@@ -51,7 +51,7 @@ namespace CsvRepo
             => GetInternal(typeof(TItem), key.ToString()) as TItem;
 
 
-        //ToDo: primary key constraint!
+        //ToDo: primary key constraint or identity column feature!
         public void Add<TItem>(TItem item)
         {
             var itemType = typeof(TItem);
@@ -60,7 +60,7 @@ namespace CsvRepo
             if (_fileProvider.Exists(path))
                 using (var file = _fileProvider.GetFile(path))
                     file.AppendLine(GetCsvLine(item));
-            else            
+            else
                 using (var file = _fileProvider.Create(path))
                 {
                     file.AppendLine(GetHeader(itemType));
@@ -76,21 +76,49 @@ namespace CsvRepo
             if (_fileProvider.Exists(path))
                 using (var file = _fileProvider.GetFile(path))
                     items.Select(i => GetCsvLine(i)).ToList().ForEach(file.AppendLine);
-            
-            using (var file = _fileProvider.Create(path))
-            {
-                file.AppendLine(GetHeader(itemType));
-                items.Select(i => GetCsvLine(i)).ToList().ForEach(file.AppendLine);
-            }
+            else
+                using (var file = _fileProvider.Create(path))
+                {
+                    file.AppendLine(GetHeader(itemType));
+                    items.Select(i => GetCsvLine(i)).ToList().ForEach(file.AppendLine);
+                }
         }
 
-        public void Delete<TItem, TKey>(TKey key)
-            => Delete<TItem>(key);
+        public void Delete<TItem>(object key)
+        {
+            var itemType = typeof(TItem);
+            var primaryKeyFieldName = GetPrimaryKeyFieldName(typeof(TItem));
+            var primaryKeyIndex = GetPropertyIndex(itemType, primaryKeyFieldName);
+
+            if (!primaryKeyIndex.HasValue)
+                throw new ArgumentException($"Excepted primary key {primaryKeyFieldName} missing on  type {itemType.Name}");
+
+            var path = GetFilePath(itemType);
+
+            using (var file = _fileProvider.GetFile(path))
+            {
+                var index = 0;
+                var lookupString = key.ToString();
+                string line;
+
+                while ((line = file.ReadLine()) != null)
+                {
+                    if (string.Equals(Split(line)[primaryKeyIndex.Value], lookupString))
+                    {
+                        file.DeleteLine(index);
+                        return;
+                    }                   
+                    index++;
+                }
+
+  
+            }
+        }
 
         public void Update<TItem>(TItem item)
         {
             var primaryKey = GetPrimaryKeyValueOfItem(item);
-            Delete<TItem>(item);
+            Delete<TItem>(primaryKey);
             Add(item);
         }
 
@@ -127,31 +155,7 @@ namespace CsvRepo
         }
 
 
-        private void Delete<TItem>(object key)
-        {
-            var itemType = typeof(TItem);
-            var primaryKeyFieldName = GetPrimaryKeyFieldName(typeof(TItem));
-            var primaryKeyIndex = GetPropertyIndex(itemType, primaryKeyFieldName);
-
-            if (!primaryKeyIndex.HasValue)
-                throw new ArgumentException($"Excepted primary key {primaryKeyFieldName} missing on  type {itemType.Name}");
-
-            var path = GetFilePath(itemType);
-
-            using (var file = _fileProvider.GetFile(path))
-            {
-                var index = 0;
-                var lookupString = key.ToString();
-                string line;
-
-                while ((line = file.ReadLine()) != null)
-                    if (string.Equals(Split(line)[primaryKeyIndex.Value], lookupString))
-                        break;
-
-                file.DeleteLine(index);
-            }
-        }
-        
+       
         private string GetFileName<TItem>()
             => GetFilePath(typeof(TItem));
 

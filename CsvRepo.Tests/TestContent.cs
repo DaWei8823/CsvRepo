@@ -29,21 +29,31 @@ namespace CsvRepo.Tests
     }
 
     internal class Person
-    {
+    {        
+        public int PersonId { get; set; }
         public string Name { get; set; }
         public int Age { get; set; }
         public decimal Height { get; set; }
         public DateTime Birthday { get; set; }
     }
 
+    internal class Car
+    {
+        public string Make { get; set; }
+        public string Model { get; set; }
+        public int Year { get; set; }
+    }
+
+    
+
     public static class MockCsvs
     {
         public static string[] MockPeopleLines = new string[]
         {
-            "\"Name\",\"Age\",\"Height\",\"Birthday\"",
-            "\"David\",\"25\",\"60.43\",\"2/14/1994 12:00:00 AM\"",
-            "\"Sam\",\"40\",\"65.94\",\"11/29/1990 12:00:00 AM\"",
-            "\"Julia\",\"32\",\"64.02\",\"8/5/1983 12:00:00 AM\""
+            "\"PersonId\",\"Name\",\"Age\",\"Height\",\"Birthday\"",
+            "\"1\",\"David\",\"25\",\"60.43\",\"2/14/1994 12:00:00 AM\"",
+            "\"2\",\"Sam\",\"40\",\"65.94\",\"11/29/1990 12:00:00 AM\"",
+            "\"3\",\"Julia\",\"32\",\"64.02\",\"8/5/1983 12:00:00 AM\""
         };
 
         public static string[] MockCustomerLines = new string[]
