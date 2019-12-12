@@ -61,7 +61,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="CsvRepoTests.cs" />
+    <Compile Include="RegressionTests.cs" />
+    <Compile Include="UnitTests.cs" />
     <Compile Include="MockFile.cs" />
     <Compile Include="MockFileProvider.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -69,6 +70,15 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+    <None Include="TestCsvs\Order.csv">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="TestCsvs\Item.csv">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="TestCsvs\Customer.csv">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\CsvRepo.Sample\CsvRepo.Sample.csproj">
@@ -80,6 +90,7 @@
       <Name>CsvRepo</Name>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>

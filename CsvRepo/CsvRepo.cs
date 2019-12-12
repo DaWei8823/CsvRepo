@@ -31,19 +31,13 @@ namespace CsvRepo
             if (!_fileProvider.Exists(path))
                 return Enumerable.Empty<TItem>().ToList();
 
-            var items = new List<TItem>();
-
             var instantiator = GetInstantiationFunc(typeof(TItem));
 
-            using (var file = _fileProvider.GetFile(path))
-            {
-                string line;
-                file.ReadLine(); // advance reader past the header line
-                while ((line = file.ReadLine()) != null)
-                    items.Add(instantiator(Split(line)) as TItem);
-            }
+            return _fileProvider.GetFile(path)
+                .GetLines().Skip(1)
+                .Select(l => instantiator(Split(l)) as TItem)
+                .ToList();
 
-            return items;
         }
         
 
@@ -52,6 +46,7 @@ namespace CsvRepo
 
 
         //ToDo: primary key constraint or identity column feature!
+        //ToDo: add parent navigation properties to appropriate file
         public void Add<TItem>(TItem item)
         {
             var itemType = typeof(TItem);
@@ -92,27 +87,18 @@ namespace CsvRepo
 
             if (!primaryKeyIndex.HasValue)
                 throw new ArgumentException($"Excepted primary key {primaryKeyFieldName} missing on  type {itemType.Name}");
+            
+            var file = _fileProvider.GetFile(GetFilePath(itemType));
 
-            var path = GetFilePath(itemType);
+            var arrayOfPrimaryKeys = file.GetLines()
+                .Select(Split)
+                .Select(cells => cells[primaryKeyIndex.Value])
+                .ToArray();
 
-            using (var file = _fileProvider.GetFile(path))
-            {
-                var index = 0;
-                var lookupString = key.ToString();
-                string line;
-
-                while ((line = file.ReadLine()) != null)
-                {
-                    if (string.Equals(Split(line)[primaryKeyIndex.Value], lookupString))
-                    {
-                        file.DeleteLine(index);
-                        return;
-                    }                   
-                    index++;
-                }
-
-  
-            }
+            var index = Array.IndexOf(arrayOfPrimaryKeys, key.ToString());
+            
+            file.DeleteLine(index);
+            
         }
 
         public void Update<TItem>(TItem item)

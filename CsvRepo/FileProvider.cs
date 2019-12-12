@@ -21,7 +21,8 @@ namespace CsvRepo
 
         public IFile Create(string path)
         {
-            IO.File.Create(path);
+            var stream = IO.File.Create(path);
+            stream.Dispose();
             return new File(path);
         }
         

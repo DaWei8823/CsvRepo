@@ -9,23 +9,22 @@ namespace CsvRepo
 {
     public class File : IFile
     {
-        private readonly StreamReader _streamReader;
-        private readonly StreamWriter _streamWriter;
         private readonly string _path;
 
 
         public File(string path)
         {
             _path = path;
-            _streamReader = new StreamReader(path);
-            _streamWriter = new StreamWriter(path);
         }
 
-        public string ReadLine()
-            => _streamReader.ReadLine();
+        public string[] GetLines()
+            => System.IO.File.ReadAllLines(_path);
 
         public void AppendLine(string line)
-            => _streamWriter.WriteLine(line);
+            => System.IO.File.AppendAllLines(_path, new string[] { line });
+            
+        
+
 
         public void DeleteLine(int lineNumber)
         {
@@ -34,8 +33,6 @@ namespace CsvRepo
             System.IO.File.WriteAllLines(_path, lines);
         }
 
-        public void Dispose()
-            => _streamReader.Dispose();
 
 
     }

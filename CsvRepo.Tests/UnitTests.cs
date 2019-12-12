@@ -11,7 +11,7 @@ using CsvRepo = CsvRepo.CsvRepo;
 namespace CsvRepo.Tests
 {
     [TestFixture]
-    public class CsvRepoTests
+    public class UnitTests
     {
 
         private IFileProvider _mockFileProvider;
@@ -178,8 +178,6 @@ namespace CsvRepo.Tests
                 }
             };
                 
-
-
             //Act
             _testRepo.AddRange(cars);
             var lines = GetAllLines("baseDir\\Car.csv");
