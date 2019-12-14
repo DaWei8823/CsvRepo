@@ -97,7 +97,10 @@ namespace CsvRepo
                 .ToArray();
 
             var index = Array.IndexOf(arrayOfPrimaryKeys, key.ToString());
-            
+
+            if (index == -1)
+                throw new ArgumentException($"Could not find {itemType.Name} with {primaryKeyFieldName} of  {key.ToString()}");
+
             file.DeleteLine(index);
             
         }
@@ -112,7 +115,6 @@ namespace CsvRepo
 
         private object GetInternal(Type itemType, string key)
         {
-
             var path = GetFilePath(itemType);
 
             if (!_fileProvider.Exists(path))
@@ -127,20 +129,16 @@ namespace CsvRepo
                 throw new ArgumentException($"Excepted primary key {primaryKeyFieldName} missing on  type {itemType.Name}");
 
             var matches = _fileProvider.GetFile(path)
-                .GetLines().Skip(1)
-                .Select(Split)
+                .GetLines().Skip(1).Select(Split)
                 .Where(cells => string.Equals(cells[primaryKeyIndex.Value], key))
                 .ToList();
 
             if (matches.Count() != 1)
                 throw new InvalidOperationException($"Expected to find unique {itemType.Name} item primay key of {key} but found {matches.Count()} ");
-
-
+            
             return instantiator(matches.Single());
         }
-
-
-       
+                      
         private string GetFileName<TItem>()
             => GetFilePath(typeof(TItem));
 
@@ -170,8 +168,7 @@ namespace CsvRepo
                 return instance;
             };
         }
-
-
+        
         //To Do: Implement two way navigation properties
         private Func<string[], object> GetNavigationPropertyInstantiator(Type objectType, Type propertyType)
         {
@@ -184,7 +181,6 @@ namespace CsvRepo
 
             return cells => GetInternal(propertyType, cells[foreignKeyIndex.Value]);
         }
-
 
         private static object GetPrimaryKeyValueOfItem(object obj)
         {

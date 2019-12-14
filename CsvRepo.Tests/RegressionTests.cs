@@ -54,9 +54,9 @@ namespace CsvRepo.Tests
         [Test]
         public void Add()
         {
-            _repo.Add(new Customer { CustomerId = 4, Name = "Jake" });
-            _repo.Add(new Item { ItemId = 33, Name = "Candle" });
-            _repo.Add(new Order { OrderId = 4, ItemId = 67, CustomerId = 3 });
+            _repo.Add(new Customer { CustomerId = 99, Name = "James" });
+            _repo.Add(new Item { ItemId = 98, Name = "Hat" });
+            _repo.Add(new Order { OrderId = 97, ItemId = 67, CustomerId = 3 });
         }
 
         [Test]
@@ -70,7 +70,25 @@ namespace CsvRepo.Tests
         [Test]
         public void Delete()
         {
+            _repo.Delete<Customer>(99);
+            _repo.Delete<Item>(98);
+            _repo.Delete<Order>(97);
+        }
 
+        [Test]
+        public void Get()
+        {
+            var x = _repo.Get<Customer>();
+            var y = _repo.Get<Item>();
+            var z = _repo.Get<Order>();
+        }
+
+        [Test]
+        public void GetWithKey()
+        {
+            var x = _repo.Get<Customer>(3);
+            var y = _repo.Get<Item>(45);
+            var z = _repo.Get<Order>(5);
         }
     }
 }
