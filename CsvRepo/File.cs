@@ -1,30 +1,25 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
+﻿using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace CsvRepo
 {
     public class File : IFile
     {
         private readonly string _path;
-
-
+        
         public File(string path)
         {
             _path = path;
         }
 
-        public string[] GetLines()
+        public ICollection<string> GetLines()
             => System.IO.File.ReadAllLines(_path);
 
         public void AppendLine(string line)
-            => System.IO.File.AppendAllLines(_path, new string[] { line });
+            => AppendLines(new[] { line });
             
-        
-
+        public void AppendLines(IEnumerable<string> lines)
+            => System.IO.File.AppendAllLines(_path, lines);
 
         public void DeleteLine(int lineNumber)
         {
@@ -32,8 +27,6 @@ namespace CsvRepo
             lines.RemoveAt(lineNumber);
             System.IO.File.WriteAllLines(_path, lines);
         }
-
-
 
     }
 }

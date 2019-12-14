@@ -1,11 +1,7 @@
 ﻿using CsvRepo.Sample;
 using NUnit.Framework;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace CsvRepo.Tests
 {
@@ -26,7 +22,7 @@ namespace CsvRepo.Tests
         }
 
         [Test]
-        public void Foo()
+        public void AddRange()
         {
             var customers = new Customer[]
             {
@@ -53,7 +49,28 @@ namespace CsvRepo.Tests
             _repo.AddRange(items);
             _repo.AddRange(orders);
 
-            
+        }
+
+        [Test]
+        public void Add()
+        {
+            _repo.Add(new Customer { CustomerId = 4, Name = "Jake" });
+            _repo.Add(new Item { ItemId = 33, Name = "Candle" });
+            _repo.Add(new Order { OrderId = 4, ItemId = 67, CustomerId = 3 });
+        }
+
+        [Test]
+        public void Update()
+        {
+            _repo.Update(new Item { ItemId = 67, Name = "Tuba" });
+            _repo.Update(new Customer { CustomerId = 1, Name = "Curtis" });
+            _repo.Update(new Order { OrderId = 3, ItemId = 67, CustomerId = 2 });
+        }
+
+        [Test]
+        public void Delete()
+        {
+
         }
     }
 }

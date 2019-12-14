@@ -8,8 +8,9 @@ namespace CsvRepo
 {
     public interface IFile 
     {
-        string[] GetLines();
+        ICollection<string> GetLines();
         void AppendLine(string line);
+        void AppendLines(IEnumerable<string> lines);
         void DeleteLine(int lineNumber);
     }
 }

@@ -53,30 +53,31 @@ namespace CsvRepo
             var path = GetFilePath(itemType);
 
             if (_fileProvider.Exists(path))
-                using (var file = _fileProvider.GetFile(path))
-                    file.AppendLine(GetCsvLine(item));
+                _fileProvider.GetFile(path).AppendLine(GetCsvLine(item));
             else
-                using (var file = _fileProvider.Create(path))
-                {
-                    file.AppendLine(GetHeader(itemType));
-                    file.AppendLine(GetCsvLine(item));
-                }
+            {
+                var file = _fileProvider.Create(path);
+                file.AppendLine(GetHeader(itemType));
+                file.AppendLine(GetCsvLine(item));
+            }
         }
 
         public void AddRange<TItem>(IEnumerable<TItem> items)
         {
             var itemType = typeof(TItem);
             var path = GetFilePath(itemType);
-            
+
             if (_fileProvider.Exists(path))
-                using (var file = _fileProvider.GetFile(path))
-                    items.Select(i => GetCsvLine(i)).ToList().ForEach(file.AppendLine);
+            {
+                var file = _fileProvider.GetFile(path);
+                file.AppendLines(items.Select(i => GetCsvLine(i)));
+            }
             else
-                using (var file = _fileProvider.Create(path))
-                {
-                    file.AppendLine(GetHeader(itemType));
-                    items.Select(i => GetCsvLine(i)).ToList().ForEach(file.AppendLine);
-                }
+            { 
+                var file = _fileProvider.Create(path);                
+                file.AppendLine(GetHeader(itemType));
+                file.AppendLines(items.Select(i => GetCsvLine(i)));
+            }
         }
 
         public void Delete<TItem>(object key)
@@ -125,19 +126,17 @@ namespace CsvRepo
             if (!primaryKeyIndex.HasValue)
                 throw new ArgumentException($"Excepted primary key {primaryKeyFieldName} missing on  type {itemType.Name}");
 
-            using (var file = _fileProvider.GetFile(path))
-            {
-                string line;
-                file.ReadLine(); // advance reader past the header line
-                while ((line = file.ReadLine()) != null) 
-                {
-                    var cells = Split(line);
-                    if (string.Equals(cells[primaryKeyIndex.Value], key.ToString()))
-                        return instantiator(cells);
-                }
-            }
+            var matches = _fileProvider.GetFile(path)
+                .GetLines().Skip(1)
+                .Select(Split)
+                .Where(cells => string.Equals(cells[primaryKeyIndex.Value], key))
+                .ToList();
 
-            throw new InvalidOperationException($"Could not find {itemType.Name}  value of {key.ToString()} for primary key {primaryKeyFieldName}");
+            if (matches.Count() != 1)
+                throw new InvalidOperationException($"Expected to find unique {itemType.Name} item primay key of {key} but found {matches.Count()} ");
+
+
+            return instantiator(matches.Single());
         }
 
 
@@ -208,7 +207,6 @@ namespace CsvRepo
         private static string GetPrimaryKeyFieldName(Type type)
             => $"{type.Name}Id";
 
-        //ToDo: Fill Dictionary!!
         private static readonly IDictionary<Type, Func<int, string[], object>> PropertyInstantiatorMapping
             = new Dictionary<Type, Func<int, string[], object>>
         {
@@ -240,8 +238,7 @@ namespace CsvRepo
         
         private static string GetCsvLine(object obj)
         {
-            var propValues = obj.GetType()
-                .GetProperties()
+            var propValues = obj.GetType().GetProperties()
                 .Where(p => PropertyInstantiatorMapping.ContainsKey(p.PropertyType))
                 .Select(p => p.GetValue(obj).ToString());
 

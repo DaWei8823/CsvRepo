@@ -243,18 +243,10 @@ namespace CsvRepo.Tests
         }
 
         private IList<string> GetAllLines(string filePath)
-        {
-            var list = new List<string>();
+            => _mockFileProvider.GetFile(filePath)
+                .GetLines()
+                .ToList();
 
-            using (var file = _mockFileProvider.GetFile(filePath))
-            {
-                string line;
-                while ((line = file.ReadLine()) != null)
-                    list.Add(line);
-            }
-
-            return list;
-        }
 
     }
 }

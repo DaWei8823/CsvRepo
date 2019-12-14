@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
 
 namespace CsvRepo.Tests
 {
@@ -15,30 +11,20 @@ namespace CsvRepo.Tests
         {
             _lines = lines;
         }
-
-
-
+        
         public void AppendLine(string line)
             =>  _lines.Add(line);
         
+        public void AppendLines(IEnumerable<string> lines)
+        {
+            foreach (var line in lines)
+                _lines.Add(line);
+        }
 
         public void DeleteLine(int lineNumber)
             => _lines.RemoveAt(lineNumber);
 
-
-        public void Dispose() { }
-
-
-        public string ReadLine()
-        {
-            var result = readerAt < _lines.Count()
-                      ? _lines[readerAt]
-                      : null;
-
-            readerAt++;
-
-            return result;
-        }
-        
+        public ICollection<string> GetLines()
+            => _lines;        
     }
 }
