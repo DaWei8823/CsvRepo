@@ -142,9 +142,6 @@ namespace CsvRepo.Tests
                     Name = "Lexi"
                 }
             };
-        
-                    
-
 
             //Act
             _testRepo.AddRange(customers);
